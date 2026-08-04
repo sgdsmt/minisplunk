@@ -1,4 +1,5 @@
 fastapi
 uvicorn
-pika
 python-multipart
+pika
+pymongo

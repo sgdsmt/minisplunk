@@ -15,6 +15,16 @@ services:
       - "5672:5672"
       - "15672:15672"
 
+  mongodb:
+    image: mongo:7
+    container_name: mongodb
+    hostname: mongodb
+
+    ports:
+      - "27017:27017"
+
+    restart: unless-stopped
+
   gateway:
     build: ./gateway
     container_name: gateway
@@ -24,5 +34,14 @@ services:
 
     ports:
       - "8000:8000"
+
+    restart: unless-stopped
+
+  worker:
+    build: ./worker
+    container_name: worker
+
+    depends_on:
+      - rabbitmq
 
     restart: unless-stopped
