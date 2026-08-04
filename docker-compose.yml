@@ -1,47 +1,126 @@
-version: "3.8"
+version: "3.9"
 
 services:
 
   rabbitmq:
     image: rabbitmq:3-management
     container_name: rabbitmq
-    hostname: rabbitmq
 
-    environment:
-      RABBITMQ_DEFAULT_USER: rabbituser
-      RABBITMQ_DEFAULT_PASS: rabbit1234
+    hostname: rabbitmq
 
     ports:
       - "5672:5672"
       - "15672:15672"
 
-  mongodb:
+    environment:
+      RABBITMQ_DEFAULT_USER: rabbituser
+      RABBITMQ_DEFAULT_PASS: rabbit1234
+
+  #######################################
+  ## CONFIG SERVER
+  #######################################
+
+  configsvr:
     image: mongo:7
-    container_name: mongodb
-    hostname: mongodb
+
+    container_name: configsvr
+
+    command: >
+      mongod
+      --configsvr
+      --replSet configReplSet
+      --port 27019
+      --bind_ip_all
+
+    ports:
+      - "27019:27019"
+
+  #######################################
+  ## SHARD 1
+  #######################################
+
+  shard1:
+    image: mongo:7
+
+    container_name: shard1
+
+    command: >
+      mongod
+      --shardsvr
+      --replSet shard1ReplSet
+      --port 27018
+      --bind_ip_all
+
+    ports:
+      - "27018:27018"
+
+  #######################################
+  ## SHARD 2
+  #######################################
+
+  shard2:
+    image: mongo:7
+
+    container_name: shard2
+
+    command: >
+      mongod
+      --shardsvr
+      --replSet shard2ReplSet
+      --port 27018
+      --bind_ip_all
+
+    ports:
+      - "27020:27018"
+
+  #######################################
+  ## MONGOS ROUTER
+  #######################################
+
+  mongos:
+    image: mongo:7
+
+    container_name: mongos
+
+    command: >
+      mongos
+      --configdb configReplSet/configsvr:27019
+      --bind_ip_all
 
     ports:
       - "27017:27017"
 
-    restart: unless-stopped
+    depends_on:
+      - configsvr
+      - shard1
+      - shard2
+
+  #######################################
+  ## GATEWAY
+  #######################################
 
   gateway:
     build: ./gateway
-    container_name: gateway
 
-    depends_on:
-      - rabbitmq
+    container_name: gateway
 
     ports:
       - "8000:8000"
 
-    restart: unless-stopped
+    depends_on:
+      - rabbitmq
+      - mongos
+
+  #######################################
+  ## WORKER
+  #######################################
 
   worker:
+
     build: ./worker
+
     container_name: worker
 
     depends_on:
       - rabbitmq
-
-    restart: unless-stopped
+      - mongos

@@ -40,7 +40,7 @@ channel.queue_declare(
 # Connect to MongoDB
 # -----------------------
 
-mongo = MongoClient("mongodb://mongodb:27017/")
+mongo = MongoClient("mongodb://mongos:27017/")
 
 db = mongo["minisplunk"]
 

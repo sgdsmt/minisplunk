@@ -5,7 +5,7 @@ from pymongo import MongoClient
 app = FastAPI()
 
 RABBITMQ_HOST = "rabbitmq"
-mongo = MongoClient("mongodb://mongodb:27017/")
+mongo = MongoClient("mongodb://mongos:27017/")
 
 db = mongo["minisplunk"]
 
