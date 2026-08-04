@@ -154,6 +154,23 @@ services:
       - rabbitmq
       - mongos
 
+#######################################
+## FORWARDER
+#######################################
+
+  forwarder:
+
+    build: ./forwarder
+
+    container_name: forwarder
+
+    stdin_open: true
+
+    tty: true
+
+    depends_on:
+      - gateway
+
 volumes:
   config_data:
   shard1_data:
