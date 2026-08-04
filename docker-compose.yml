@@ -35,6 +35,9 @@ services:
     ports:
       - "27019:27019"
 
+    volumes:
+      - config_data:/data/configdb
+
   #######################################
   ## SHARD 1
   #######################################
@@ -54,6 +57,9 @@ services:
     ports:
       - "27018:27018"
 
+    volumes:
+      - shard1_data:/data/db
+
   #######################################
   ## SHARD 2
   #######################################
@@ -72,6 +78,9 @@ services:
 
     ports:
       - "27020:27018"
+
+    volumes:
+      - shard2_data:/data/db
 
   #######################################
   ## MONGOS ROUTER
@@ -112,15 +121,40 @@ services:
       - mongos
 
   #######################################
-  ## WORKER
+  ## WORKERS
   #######################################
 
-  worker:
+  worker1:
 
     build: ./worker
 
-    container_name: worker
+    container_name: worker1
 
     depends_on:
       - rabbitmq
       - mongos
+
+  worker2:
+
+    build: ./worker
+
+    container_name: worker2
+
+    depends_on:
+      - rabbitmq
+      - mongos
+
+  worker3:
+
+    build: ./worker
+
+    container_name: worker3
+
+    depends_on:
+      - rabbitmq
+      - mongos
+
+volumes:
+  config_data:
+  shard1_data:
+  shard2_data:

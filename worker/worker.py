@@ -1,8 +1,14 @@
 import time
 import pika
+
 from pymongo import MongoClient
+from pymongo.errors import ServerSelectionTimeoutError, PyMongoError
 
 from parser import parse_log
+
+# -----------------------
+# RabbitMQ Credentials
+# -----------------------
 
 credentials = pika.PlainCredentials(
     "rabbituser",
@@ -23,10 +29,11 @@ while connection is None:
                 credentials=credentials
             )
         )
+
         print("Connected to RabbitMQ!")
 
     except pika.exceptions.AMQPConnectionError:
-        print("RabbitMQ not ready... retrying")
+        print("RabbitMQ not ready... retrying in 5 seconds")
         time.sleep(5)
 
 channel = connection.channel()
@@ -36,17 +43,31 @@ channel.queue_declare(
     durable=True
 )
 
+channel.basic_qos(prefetch_count=1)
+
 # -----------------------
 # Connect to MongoDB
 # -----------------------
 
-mongo = MongoClient("mongodb://mongos:27017/")
+mongo = None
+
+while mongo is None:
+    try:
+        mongo = MongoClient(
+            "mongodb://mongos:27017/",
+            serverSelectionTimeoutMS=5000
+        )
+
+        mongo.admin.command("ping")
+
+        print("Connected to MongoDB!")
+
+    except ServerSelectionTimeoutError:
+        print("MongoDB not ready... retrying in 5 seconds")
+        time.sleep(5)
 
 db = mongo["minisplunk"]
-
 collection = db["logs"]
-
-print("Connected to MongoDB!")
 
 # -----------------------
 # Callback
@@ -59,13 +80,29 @@ def callback(ch, method, properties, body):
     parsed = parse_log(log)
 
     if parsed:
+        try:
 
-        collection.insert_one(parsed)
+            collection.insert_one(parsed)
 
-        print("\n===== STORED =====")
-        print(parsed)
+            print("\n===== STORED =====")
+            print(parsed)
 
-    ch.basic_ack(delivery_tag=method.delivery_tag)
+            ch.basic_ack(
+                delivery_tag=method.delivery_tag
+            )
+
+        except PyMongoError as e:
+
+            print(f"MongoDB Error: {e}")
+
+            ch.basic_nack(
+                delivery_tag=method.delivery_tag,
+                requeue=True
+            )
+
+# -----------------------
+# Start Consumer
+# -----------------------
 
 channel.basic_consume(
     queue="log_queue",
